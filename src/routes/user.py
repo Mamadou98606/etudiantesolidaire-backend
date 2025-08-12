@@ -357,6 +357,29 @@ def get_all_users():
 #
 # ========================================
 
+@user_bp.route('/users', methods=['GET'])
+def get_all_users():
+    # Vérifier si l'utilisateur est connecté
+    if 'user_id' not in session:
+        return jsonify({'error': 'Non authentifié'}), 401
+
+    # Récupérer l'utilisateur connecté
+    user = User.query.get(session['user_id'])
+
+    # Vérifier que c'est un admin
+    if not user or not getattr(user, 'is_admin', False):
+        return jsonify({'error': 'Accès refusé'}), 403
+
+    try:
+        users = User.query.all()
+        users_list = [u.to_dict() for u in users]  # utilise la méthode to_dict() du modèle User
+        return jsonify({
+            'success': True,
+            'count': len(users_list),
+            'users': users_list
+        }), 200
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 
