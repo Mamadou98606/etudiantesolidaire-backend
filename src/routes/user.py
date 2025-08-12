@@ -289,3 +289,74 @@ def check_auth():
             }), 200
     
     return jsonify({'authenticated': False}), 200
+# ========================================
+# ROUTE À AJOUTER DANS LE BACKEND
+# ========================================
+# 
+# INSTRUCTIONS :
+# 1. Ouvrir le fichier "src/routes/user.py" de votre backend
+# 2. Ajouter ce code À LA FIN du fichier (avant la dernière ligne)
+# 3. Sauvegarder
+# 4. Redéployer sur Render
+#
+# ========================================
+
+# Route pour lister tous les utilisateurs (à ajouter à la fin de user.py)
+@user_bp.route('/users', methods=['GET'])
+def get_all_users():
+    """
+    Route pour récupérer la liste de tous les utilisateurs inscrits
+    Accessible via GET /users
+    """
+    try:
+        # Récupérer tous les utilisateurs de la base de données
+        users = User.query.all()
+        
+        # Convertir les utilisateurs en format JSON (sans les mots de passe)
+        users_list = []
+        for user in users:
+            user_data = {
+                'id': user.id,
+                'username': user.username,
+                'email': user.email,
+                'first_name': user.first_name,
+                'last_name': user.last_name,
+                'nationality': user.nationality,
+                'study_level': user.study_level,
+                'field_of_study': user.field_of_study,
+                'is_active': user.is_active,
+                'created_at': user.created_at.isoformat() if hasattr(user, 'created_at') else None,
+                'last_login': user.last_login.isoformat() if hasattr(user, 'last_login') and user.last_login else None
+            }
+            users_list.append(user_data)
+        
+        return jsonify({
+            'success': True,
+            'count': len(users_list),
+            'users': users_list
+        }), 200
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Erreur lors de la récupération des utilisateurs: {str(e)}'
+        }), 500
+
+
+# ========================================
+# COMMENT UTILISER CETTE ROUTE :
+# ========================================
+# 
+# Une fois ajoutée et déployée, vous pourrez voir tous vos utilisateurs en allant sur :
+# https://etudiantesolidaire-backend.onrender.com/users
+# 
+# La réponse sera au format JSON avec :
+# - success: true/false
+# - count: nombre d'utilisateurs
+# - users: liste des utilisateurs avec leurs informations (sans mot de passe)
+#
+# ========================================
+
+
+
+
