@@ -1,9 +1,3 @@
-from flask_sqlalchemy import SQLAlchemy
-from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
-
-db = SQLAlchemy()
-
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
@@ -17,6 +11,7 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
+    is_admin = db.Column(db.Boolean, default=False)  # ✅ Nouveau champ
 
     def __repr__(self):
         return f'<User {self.username}>'
@@ -39,47 +34,6 @@ class User(db.Model):
             'field_of_study': self.field_of_study,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None,
-            'is_active': self.is_active
-        }
-
-class UserProgress(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    category = db.Column(db.String(50), nullable=False)  # orientation, demarches, etudes, etc.
-    step = db.Column(db.String(100), nullable=False)
-    completed = db.Column(db.Boolean, default=False)
-    completed_at = db.Column(db.DateTime, nullable=True)
-    notes = db.Column(db.Text, nullable=True)
-    
-    user = db.relationship('User', backref=db.backref('progress', lazy=True))
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'category': self.category,
-            'step': self.step,
-            'completed': self.completed,
-            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
-            'notes': self.notes
-        }
-
-class UserBookmark(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    title = db.Column(db.String(200), nullable=False)
-    url = db.Column(db.String(500), nullable=False)
-    category = db.Column(db.String(50), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    user = db.relationship('User', backref=db.backref('bookmarks', lazy=True))
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'user_id': self.user_id,
-            'title': self.title,
-            'url': self.url,
-            'category': self.category,
-            'created_at': self.created_at.isoformat() if self.created_at else None
+            'is_active': self.is_active,
+            'is_admin': self.is_admin  # ✅ Ajout dans le dict
         }
