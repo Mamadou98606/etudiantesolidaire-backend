@@ -11,17 +11,17 @@ from routes.user import user_bp
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 
-# CORS: autoriser UNIQUEMENT ton frontend (ex: Vercel/Netlify)
+# CORS: autorise UNIQUEMENT l’URL exacte de ton frontend
 frontend_origin = os.environ.get('FRONTEND_ORIGIN', '*')
 CORS(app, supports_credentials=True, origins=[frontend_origin])
 
-# Cookies de session cross-site (HTTPS requis en prod)
+# Cookies de session cross-site (production HTTPS)
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 app.config['SESSION_COOKIE_SECURE'] = True
 
 app.register_blueprint(user_bp, url_prefix='/api')
 
-# Base de données: Render PostgreSQL via DATABASE_URL, sinon SQLite local
+# BDD Render via psycopg v3 (compatible Python 3.13)
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL:
     url = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
@@ -30,6 +30,7 @@ if DATABASE_URL:
     app.config['SQLALCHEMY_DATABASE_URI'] = url
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
 with app.app_context():
