@@ -11,29 +11,27 @@ from routes.user import user_bp
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 
+# CORS: autoriser exactement les domaines listés dans FRONTEND_ORIGIN (séparés par virgule)
 origins_env = os.environ.get('FRONTEND_ORIGIN', '')
 allowed_origins = [o.strip() for o in origins_env.split(',') if o.strip()]
 if not allowed_origins:
     allowed_origins = ['https://www.etudiantesolidaire.com']
 
-from flask_cors import CORS
 CORS(
     app,
     supports_credentials=True,
     origins=allowed_origins,
     allow_headers=['Content-Type', 'Authorization'],
-    methods=['GET','POST','PUT','DELETE','OPTIONS'],
+    methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
 )
 
-CORS(app, supports_credentials=True, origins=allowed_origins)
-
-# Cookies de session cross-site (production HTTPS)
+# Cookies de session cross-site (HTTPS requis en prod)
 app.config['SESSION_COOKIE_SAMESITE'] = 'None'
 app.config['SESSION_COOKIE_SECURE'] = True
 
 app.register_blueprint(user_bp, url_prefix='/api')
 
-# BDD Render via psycopg v3 (compatible Python 3.13)
+# Base de données (Render PostgreSQL via psycopg v3)
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL:
     url = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
