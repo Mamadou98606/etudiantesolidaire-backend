@@ -24,10 +24,12 @@ app.register_blueprint(user_bp, url_prefix='/api')
 # Base de données: Render PostgreSQL via DATABASE_URL, sinon SQLite local
 DATABASE_URL = os.environ.get('DATABASE_URL')
 if DATABASE_URL:
-    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL.replace('postgres://', 'postgresql://')
+    url = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+    if url.startswith('postgresql://'):
+        url = url.replace('postgresql://', 'postgresql+psycopg://', 1)
+    app.config['SQLALCHEMY_DATABASE_URI'] = url
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'database', 'app.db')}"
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
 with app.app_context():
