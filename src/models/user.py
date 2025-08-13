@@ -2,7 +2,10 @@ from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
 from src.database.db import db
 
+
 class User(db.Model):
+    __tablename__ = 'users'
+
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(80), unique=True, nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
@@ -15,18 +18,21 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
-    is_admin = db.Column(db.Boolean, default=False)  # ✅ Nouveau champ
+    is_admin = db.Column(db.Boolean, default=False)
+
+    progress = db.relationship('UserProgress', backref='user', cascade='all, delete-orphan')
+    bookmarks = db.relationship('UserBookmark', backref='user', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<User {self.username}>'
 
-    def set_password(self, password):
+    def set_password(self, password: str) -> None:
         self.password_hash = generate_password_hash(password)
 
-    def check_password(self, password):
+    def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             'id': self.id,
             'username': self.username,
@@ -39,5 +45,51 @@ class User(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None,
             'is_active': self.is_active,
-            'is_admin': self.is_admin  # ✅ Ajout dans le dict
+            'is_admin': self.is_admin,
+        }
+
+
+class UserProgress(db.Model):
+    __tablename__ = 'user_progress'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    category = db.Column(db.String(100), nullable=False)
+    step = db.Column(db.String(100), nullable=False)
+    completed = db.Column(db.Boolean, default=False)
+    notes = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    completed_at = db.Column(db.DateTime, nullable=True)
+
+    def to_dict(self) -> dict:
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'category': self.category,
+            'step': self.step,
+            'completed': self.completed,
+            'notes': self.notes,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+        }
+
+
+class UserBookmark(db.Model):
+    __tablename__ = 'user_bookmarks'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    title = db.Column(db.String(255), nullable=False)
+    url = db.Column(db.String(500), nullable=False)
+    category = db.Column(db.String(100), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self) -> dict:
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'title': self.title,
+            'url': self.url,
+            'category': self.category,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
         }
