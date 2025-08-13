@@ -2,6 +2,7 @@ from flask import Blueprint, jsonify, request, session
 from src.models.user import User, UserProgress, UserBookmark, db
 from datetime import datetime
 import re
+from src.database.db import db
 
 user_bp = Blueprint('user', __name__)
 
