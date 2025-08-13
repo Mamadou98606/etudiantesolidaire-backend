@@ -3,6 +3,7 @@ from models.user import User, UserProgress, UserBookmark
 from database.db import db
 from datetime import datetime
 import re
+import os
 
 user_bp = Blueprint('user', __name__)
 
@@ -234,3 +235,19 @@ def get_all_users():
     users = User.query.all()
     users_list = [u.to_dict() for u in users]
     return jsonify({'success': True, 'count': len(users_list), 'users': users_list}), 200
+
+@user_bp.route('/admin/promote', methods=['POST'])
+def promote_admin():
+    token = request.headers.get('X-Setup-Token')
+    if token != os.environ.get('ADMIN_SETUP_TOKEN'):
+        return jsonify({'error': 'Unauthorized'}), 401
+    data = request.get_json() or {}
+    username = data.get('username')
+    if not username:
+        return jsonify({'error': 'username requis'}), 400
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return jsonify({'error': 'Utilisateur non trouvé'}), 404
+    user.is_admin = True
+    db.session.commit()
+    return jsonify({'success': True, 'user': user.to_dict()}), 200
