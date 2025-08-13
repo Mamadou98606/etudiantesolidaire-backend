@@ -11,12 +11,19 @@ from routes.user import user_bp
 app = Flask(__name__, static_folder=os.path.join(os.path.dirname(__file__), 'static'))
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-me')
 
-# CORS (autorise plusieurs origines exactes via une variable d'env)
 origins_env = os.environ.get('FRONTEND_ORIGIN', '')
 allowed_origins = [o.strip() for o in origins_env.split(',') if o.strip()]
 if not allowed_origins:
-    # mets ton domaine front ici si tu veux un fallback
-    allowed_origins = ['https://etudiantesolidaire-frontend.vercel.app']
+    allowed_origins = ['https://www.etudiantesolidaire.com']
+
+from flask_cors import CORS
+CORS(
+    app,
+    supports_credentials=True,
+    origins=allowed_origins,
+    allow_headers=['Content-Type', 'Authorization'],
+    methods=['GET','POST','PUT','DELETE','OPTIONS'],
+)
 
 CORS(app, supports_credentials=True, origins=allowed_origins)
 
