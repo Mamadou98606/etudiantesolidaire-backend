@@ -26,13 +26,18 @@ def is_allowed_origin(origin: str) -> bool:
     )
 
 # CORS de base (pour les réponses simples)
-CORS(
-    app,
-    supports_credentials=True,
-    origins=allowed_origins,
-    allow_headers=['Content-Type', 'Authorization'],
-    methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-)
+CORS(app, resources={
+    r"/api/*": {
+        "origins": [
+            "http://localhost:3000", 
+            "http://localhost:5173",
+            "https://www.etudiantesolidaire.com",  # Votre domaine principal
+            "https://etudiantesolidaire.com"      # Sans www aussi
+        ],
+        "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        "allow_headers": ["Content-Type", "Authorization"]
+    }
+})
 
 # Forcer les bons headers CORS sur toutes les réponses (y compris preflight)
 @app.after_request
