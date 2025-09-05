@@ -14,6 +14,7 @@ def create_app():
         "https://etudiantesolidaire.com",
         "https://www.etudiantesolidaire.com"
         "https://lovely-empanada-61146c.netlify.app"
+        "https://api.etudiantesolidaire.com"
     ])
     
     # Initialiser la base de données (Railway)
