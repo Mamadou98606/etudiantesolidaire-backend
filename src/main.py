@@ -12,7 +12,8 @@ def create_app():
         "http://localhost:3000",
         "http://localhost:5173", 
         "https://etudiantesolidaire.com",
-        "https://www.etudiantesolidaire.com"
+        "https://www.etudiantesolidaire.com",
+        "https://api.etudiantesolidaire.com"
     ])
     
     # Initialiser la base de données (Railway)
