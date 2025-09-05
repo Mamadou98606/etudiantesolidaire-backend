@@ -7,18 +7,16 @@ from routes.user import user_bp
 def create_app():
     app = Flask(__name__)
     
-    # Configuration simple CORS
     CORS(app, supports_credentials=True, origins=[
         "http://localhost:3000",
-        "http://localhost:5173", 
+        "http://localhost:5173",
         "https://etudiantesolidaire.com",
-        "https://www.etudiantesolidaire.com"
+        "https://www.etudiantesolidaire.com",
+        "https://lovely-empanada-61146c.netlify.app",
+        "https://api.etudiantesolidaire.com"
     ])
     
-    # Initialiser la base de données (Railway)
     init_db(app)
-    
-    # Enregistrer les routes
     app.register_blueprint(user_bp, url_prefix='/api')
     
     @app.route('/')
