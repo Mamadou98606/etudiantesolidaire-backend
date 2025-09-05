@@ -24,18 +24,3 @@ def init_db(app):
             db.create_all()
     except Exception as e:
         print(f"[warn] Database initialization skipped due to error: {e}", flush=True)
-Fichier railway.json
-Vérifie qu’il contient exactement:
-{
-  "$schema": "https://railway.app/railway.schema.json",
-  "build": {
-    "builder": "NIXPACKS"
-  },
-  "deploy": {
-    "startCommand": "gunicorn app:app --bind 0.0.0.0:$PORT",
-    "healthcheckPath": "/health",
-    "healthcheckTimeout": 100,
-    "restartPolicyType": "ON_FAILURE",
-    "restartPolicyMaxRetries": 10
-  }
-}
