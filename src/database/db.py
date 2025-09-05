@@ -5,15 +5,18 @@ db = SQLAlchemy()
 
 def init_db(app):
     database_url = os.environ.get('DATABASE_URL')
+    # Normalize legacy scheme and force psycopg v3 driver for SQLAlchemy
     if database_url and database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
+    if database_url and database_url.startswith('postgresql://') and '+psycopg' not in database_url:
+        database_url = database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
 
     # Use writable ephemeral storage for SQLite fallback in containers
     if not database_url:
         database_url = 'sqlite:////tmp/app.db'
 
     # Add a short connect timeout for Postgres to avoid long hangs on startup
-    if database_url.startswith('postgresql://') and 'connect_timeout=' not in database_url:
+    if database_url.startswith('postgresql+psycopg://') and 'connect_timeout=' not in database_url:
         sep = '&' if '?' in database_url else '?'
         database_url = f"{database_url}{sep}connect_timeout=5"
 
@@ -26,8 +29,8 @@ def init_db(app):
     # Log de diagnostic masqué pour confirmer la base utilisée
     try:
         masked = database_url
-        if masked.startswith('postgresql://'):
-            masked = 'postgresql://***:***@' + masked.split('@', 1)[1]
+        if masked.startswith('postgresql+psycopg://'):
+            masked = 'postgresql+psycopg://***:***@' + masked.split('@', 1)[1]
         print(f"[info] Using database: {masked}", flush=True)
     except Exception:
         pass
