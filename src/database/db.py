@@ -18,6 +18,15 @@ def init_db(app):
 
     db.init_app(app)
 
+    # Log de diagnostic masqué pour confirmer la base utilisée
+    try:
+        masked = database_url
+        if masked.startswith('postgresql://'):
+            masked = 'postgresql://***:***@' + masked.split('@', 1)[1]
+        print(f"[info] Using database: {masked}", flush=True)
+    except Exception:
+        pass
+
     # Ensure app still boots even if the database is temporarily unavailable
     try:
         with app.app_context():
