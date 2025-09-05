@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Point d'entrée principal pour Render
-Importe l'application Flask depuis src/main_render.py
+Point d'entrée principal pour Railway
+Importe l'application Flask depuis src/main.py
 """
 import sys
 import os
@@ -9,8 +9,11 @@ import os
 # Ajouter le répertoire src au Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
-# Importer l'application Flask
-from main import app
+# Importer et créer l'application Flask
+from main import create_app
+
+# Créer l'instance de l'application
+app = create_app()
 
 if __name__ == '__main__':
     # Pour les tests locaux
