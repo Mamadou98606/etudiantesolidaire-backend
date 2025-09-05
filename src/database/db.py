@@ -8,9 +8,14 @@ def init_db(app):
     if database_url and database_url.startswith('postgres://'):
         database_url = database_url.replace('postgres://', 'postgresql://', 1)
 
-    # Fallback SQLite dans /tmp si pas de DATABASE_URL
+    # Fallback SQLite (conteneur) si pas de DATABASE_URL
     if not database_url:
         database_url = 'sqlite:////tmp/app.db'
+
+    # Évite les blocages au démarrage si Postgres ne répond pas
+    if database_url.startswith('postgresql://') and 'connect_timeout=' not in database_url:
+        sep = '&' if '?' in database_url else '?'
+        database_url = f"{database_url}{sep}connect_timeout=5"
 
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -18,7 +23,16 @@ def init_db(app):
 
     db.init_app(app)
 
-    # Ne pas bloquer le démarrage si la DB est momentanément indisponible
+    # Log masqué pour confirmer la base utilisée
+    try:
+        masked = database_url
+        if masked.startswith('postgresql://'):
+            masked = 'postgresql://***:***@' + masked.split('@', 1)[1]
+        print(f"[info] Using database: {masked}", flush=True)
+    except Exception:
+        pass
+
+    # Ne bloque pas le démarrage si la DB est indispo
     try:
         with app.app_context():
             db.create_all()
