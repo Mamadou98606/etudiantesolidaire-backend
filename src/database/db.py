@@ -12,6 +12,11 @@ def init_db(app):
     if not database_url:
         database_url = 'sqlite:////tmp/app.db'
 
+    # Add a short connect timeout for Postgres to avoid long hangs on startup
+    if database_url.startswith('postgresql://') and 'connect_timeout=' not in database_url:
+        sep = '&' if '?' in database_url else '?'
+        database_url = f"{database_url}{sep}connect_timeout=5"
+
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
@@ -30,6 +35,12 @@ def init_db(app):
     # Ensure app still boots even if the database is temporarily unavailable
     try:
         with app.app_context():
-            db.create_all()
+            should_create = (
+                database_url.startswith('sqlite:///') or
+                database_url.startswith('sqlite:////') or
+                os.environ.get('AUTO_CREATE_TABLES', 'false').lower() == 'true'
+            )
+            if should_create:
+                db.create_all()
     except Exception as e:
         print(f"[warn] Database initialization skipped due to error: {e}", flush=True)
