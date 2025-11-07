@@ -108,7 +108,7 @@ def send_email_rdv_confirmation(rdv):
 
         # Envoyer email utilisateur via Resend
         user_params = {
-            "from": "onboarding@resend.dev",
+            "from": "noreply@etudiantesolidaire.com",
             "to": [rdv.email],
             "subject": user_subject,
             "html": user_body,
@@ -118,7 +118,7 @@ def send_email_rdv_confirmation(rdv):
 
         # Envoyer email admin via Resend
         admin_params = {
-            "from": "onboarding@resend.dev",
+            "from": "noreply@etudiantesolidaire.com",
             "to": [admin_email],
             "subject": admin_subject,
             "html": admin_body,
