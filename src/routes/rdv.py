@@ -52,15 +52,26 @@ def validate_rdv_form(data):
 def is_slot_available(date_str, time_str):
     """Vérifier si un créneau est disponible"""
     try:
+        # Convertir la date string en objet date si nécessaire
+        if isinstance(date_str, str):
+            from datetime import datetime
+            try:
+                date_obj = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except:
+                date_obj = date_str
+        else:
+            date_obj = date_str
+        
         # Chercher s'il y a déjà une réservation confirmée à cette date/heure
         existing_rdv = RDV.query.filter(
-            RDV.date_rdv == date_str,
+            RDV.date_rdv == date_obj,
             RDV.heure_rdv == time_str,
             RDV.statut.in_(['pending', 'confirmed'])
         ).first()
 
         return existing_rdv is None
-    except Exception:
+    except Exception as e:
+        print(f"Erreur dans is_slot_available: {e}")
         return False
 
 
@@ -83,6 +94,15 @@ def reserver_rdv():
             }), 409
 
         # Créer la réservation
+        # Convertir la date string en objet date
+        date_obj = data['date_rdv']
+        if isinstance(date_obj, str):
+            from datetime import datetime
+            try:
+                date_obj = datetime.strptime(date_obj, '%Y-%m-%d').date()
+            except:
+                pass  # Garder le string si la conversion échoue
+        
         rdv = RDV(
             prenom=data['prenom'],
             nom=data['nom'],
@@ -93,7 +113,7 @@ def reserver_rdv():
             consultation_type=data['consultation_type'],
             sujet=data.get('sujet', ''),
             message=data.get('message', ''),
-            date_rdv=data['date_rdv'],
+            date_rdv=date_obj,
             heure_rdv=data['heure_rdv'],
             statut='pending',
             user_id=data.get('user_id')
@@ -128,9 +148,16 @@ def reserver_rdv():
 def get_disponibilites(date):
     """Récupérer les créneau occupés pour une date donnée"""
     try:
+        # Convertir la date string en objet date
+        from datetime import datetime
+        try:
+            date_obj = datetime.strptime(date, '%Y-%m-%d').date()
+        except:
+            date_obj = date
+        
         # Récupérer toutes les réservations confirmées/pending pour cette date
         rdvs = RDV.query.filter(
-            RDV.date_rdv == date,
+            RDV.date_rdv == date_obj,
             RDV.statut.in_(['pending', 'confirmed'])
         ).all()
 
