@@ -3,7 +3,6 @@ from flask import Flask, request, make_response
 from database.db import init_db
 from routes.user import user_bp
 from routes.rdv import rdv_bp
-from email_utils import mail
 
 def create_app():
     app = Flask(__name__)
@@ -47,18 +46,7 @@ def create_app():
             response.headers['Access-Control-Allow-Credentials'] = 'true'
         return response
 
-    # Configuration du mail
-    app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
-    app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
-    app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', 'true').lower() == 'true'
-    app.config['MAIL_USE_SSL'] = os.environ.get('MAIL_USE_SSL', 'false').lower() == 'true'
-    app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
-    app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-    app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@etudiantesolidaire.com')
-    app.config['ADMIN_EMAIL'] = os.environ.get('ADMIN_EMAIL', 'contact@etudiantesolidaire.com')
-
     init_db(app)
-    mail.init_app(app)
     app.register_blueprint(user_bp, url_prefix='/api')
     app.register_blueprint(rdv_bp, url_prefix='/api')
 

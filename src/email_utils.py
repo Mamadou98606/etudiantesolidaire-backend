@@ -1,20 +1,13 @@
 import os
-from flask_mail import Mail, Message
+from resend import Resend
 from jinja2 import Template
 
-# Configuration Flask-Mail (à ajouter dans main.py)
-# app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
-# app.config['MAIL_PORT'] = int(os.environ.get('MAIL_PORT', 587))
-# app.config['MAIL_USE_TLS'] = os.environ.get('MAIL_USE_TLS', True)
-# app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
-# app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
-# app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', 'noreply@etudiantesolidaire.com')
-
-mail = Mail()
+# Initialize Resend client
+resend_client = Resend(api_key=os.environ.get('RESEND_API_KEY'))
 
 
 def send_email_rdv_confirmation(rdv):
-    """Envoyer un email de confirmation au user et à l'admin"""
+    """Envoyer un email de confirmation au user et à l'admin via Resend"""
 
     # Email utilisateur
     user_subject = f"Confirmation de votre réservation - {rdv.date_rdv} à {rdv.heure_rdv}"
@@ -113,25 +106,25 @@ def send_email_rdv_confirmation(rdv):
 
         admin_email = os.environ.get('ADMIN_EMAIL', 'mguirassy9@gmail.com')
 
-        # Envoyer email utilisateur
-        msg_user = Message(
-            subject=user_subject,
-            recipients=[rdv.email],
-            html=user_body
-        )
-        mail.send(msg_user)
+        # Envoyer email utilisateur via Resend
+        resend_client.emails.send({
+            "from": "onboarding@resend.dev",
+            "to": rdv.email,
+            "subject": user_subject,
+            "html": user_body,
+        })
 
-        # Envoyer email admin
-        msg_admin = Message(
-            subject=admin_subject,
-            recipients=[admin_email],
-            html=admin_body
-        )
-        mail.send(msg_admin)
+        # Envoyer email admin via Resend
+        resend_client.emails.send({
+            "from": "onboarding@resend.dev",
+            "to": admin_email,
+            "subject": admin_subject,
+            "html": admin_body,
+        })
 
-        print(f"Emails envoyés pour la réservation {rdv.id}")
+        print(f"✅ Emails envoyés pour la réservation {rdv.id}")
         return True
 
     except Exception as e:
-        print(f"Erreur lors de l'envoi des emails: {e}")
+        print(f"❌ Erreur lors de l'envoi des emails Resend: {e}")
         return False
