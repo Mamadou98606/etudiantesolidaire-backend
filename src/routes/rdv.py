@@ -4,9 +4,19 @@ from database.db import db
 from datetime import datetime, timedelta
 import os
 import re
+import threading
 from email_utils import send_email_rdv_confirmation
 
 rdv_bp = Blueprint('rdv', __name__)
+
+
+def send_email_async(rdv):
+    """Envoyer les emails dans un thread séparé pour ne pas bloquer"""
+    try:
+        send_email_rdv_confirmation(rdv)
+        print(f"✅ Emails envoyés pour la réservation {rdv.id}")
+    except Exception as e:
+        print(f"❌ Erreur lors de l'envoi des emails: {e}")
 
 
 def validate_email(email):
@@ -122,15 +132,10 @@ def reserver_rdv():
         db.session.add(rdv)
         db.session.commit()
 
-        # Envoyer les emails (DÉSACTIVÉ TEMPORAIREMENT - cause un timeout)
-        # try:
-        #     send_email_rdv_confirmation(rdv)
-        #     rdv.email_admin_sent = True
-        #     rdv.email_user_sent = True
-        #     db.session.commit()
-        # except Exception as e:
-        #     print(f"Erreur lors de l'envoi des emails: {e}")
-        #     # Ne pas bloquer la réservation si les emails ne s'envoient pas
+        # Envoyer les emails dans un thread séparé (non-bloquant)
+        email_thread = threading.Thread(target=send_email_async, args=(rdv,))
+        email_thread.daemon = True
+        email_thread.start()
 
         return jsonify({
             'success': True,
