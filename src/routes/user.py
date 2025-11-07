@@ -4,6 +4,7 @@ from database.db import db
 from datetime import datetime, timedelta
 import re
 import os
+import secrets
 
 user_bp = Blueprint('user', __name__)
 
@@ -54,6 +55,44 @@ def clear_attempts(identifier):
 
 # ============ FIN RATE LIMITING ============
 
+# ============ CSRF PROTECTION ============
+def generate_csrf_token():
+    """Générer un nouveau token CSRF"""
+    token = secrets.token_urlsafe(32)
+    session['csrf_token'] = token
+    return token
+
+def get_csrf_token():
+    """Récupérer le token CSRF de la session"""
+    if 'csrf_token' not in session:
+        generate_csrf_token()
+    return session['csrf_token']
+
+def validate_csrf_token(token_to_check):
+    """Valider un token CSRF"""
+    token_in_session = session.get('csrf_token')
+    # Utiliser constant_time_compare pour éviter les timing attacks
+    return token_in_session and secrets.compare_digest(token_in_session, token_to_check)
+
+def require_csrf_token(f):
+    """Décorateur pour exiger un token CSRF valide"""
+    from functools import wraps
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        # Le token peut venir du header ou du JSON body
+        csrf_token = request.headers.get('X-CSRF-Token') or (request.get_json() or {}).get('csrf_token')
+
+        if not csrf_token:
+            return jsonify({'error': 'CSRF token manquant'}), 403
+
+        if not validate_csrf_token(csrf_token):
+            return jsonify({'error': 'CSRF token invalide'}), 403
+
+        return f(*args, **kwargs)
+    return decorated_function
+
+# ============ FIN CSRF PROTECTION ============
+
 def validate_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
@@ -73,10 +112,22 @@ def validate_password(password):
         return False, "Le mot de passe doit contenir au moins 1 caractère spécial (!@#$%^&* etc)"
     return True, "OK"
 
+@user_bp.route('/csrf-token', methods=['GET'])
+def get_csrf_token_endpoint():
+    """Endpoint pour récupérer le token CSRF"""
+    token = get_csrf_token()
+    return jsonify({'csrf_token': token}), 200
+
 @user_bp.route('/register', methods=['POST'])
 def register():
     try:
         data = request.get_json() or {}
+
+        # Valider le CSRF token
+        csrf_token = data.get('csrf_token') or request.headers.get('X-CSRF-Token')
+        if not csrf_token or not validate_csrf_token(csrf_token):
+            return jsonify({'error': 'CSRF token invalide'}), 403
+
         if not data.get('username') or not data.get('email') or not data.get('password'):
             return jsonify({'error': 'Username, email et password sont requis'}), 400
         if not validate_email(data['email']):
@@ -116,6 +167,12 @@ def register():
 def login():
     try:
         data = request.get_json() or {}
+
+        # Vérifier le CSRF token
+        csrf_token = data.get('csrf_token') or request.headers.get('X-CSRF-Token')
+        if not csrf_token or not validate_csrf_token(csrf_token):
+            return jsonify({'error': 'CSRF token invalide'}), 403
+
         if not data.get('username') or not data.get('password'):
             return jsonify({'error': 'Username et password sont requis'}), 400
 
@@ -171,6 +228,13 @@ def update_profile():
     if 'user_id' not in session:
         return jsonify({'error': 'Non authentifié'}), 401
     try:
+        data = request.get_json() or {}
+
+        # Vérifier le CSRF token
+        csrf_token = data.get('csrf_token') or request.headers.get('X-CSRF-Token')
+        if not csrf_token or not validate_csrf_token(csrf_token):
+            return jsonify({'error': 'CSRF token invalide'}), 403
+
         user = User.query.get(session['user_id'])
         if not user:
             return jsonify({'error': 'Utilisateur non trouvé'}), 404
@@ -206,6 +270,12 @@ def change_password():
         return jsonify({'error': 'Non authentifié'}), 401
     try:
         data = request.get_json() or {}
+
+        # Vérifier le CSRF token
+        csrf_token = data.get('csrf_token') or request.headers.get('X-CSRF-Token')
+        if not csrf_token or not validate_csrf_token(csrf_token):
+            return jsonify({'error': 'CSRF token invalide'}), 403
+
         if not data.get('current_password') or not data.get('new_password'):
             return jsonify({'error': 'Mot de passe actuel et nouveau mot de passe requis'}), 400
 
@@ -269,6 +339,12 @@ def add_bookmark():
         return jsonify({'error': 'Non authentifié'}), 401
     try:
         data = request.get_json() or {}
+
+        # Vérifier le CSRF token
+        csrf_token = data.get('csrf_token') or request.headers.get('X-CSRF-Token')
+        if not csrf_token or not validate_csrf_token(csrf_token):
+            return jsonify({'error': 'CSRF token invalide'}), 403
+
         bookmark = UserBookmark(
             user_id=session['user_id'],
             title=data['title'],
@@ -287,6 +363,14 @@ def delete_bookmark(bookmark_id):
     if 'user_id' not in session:
         return jsonify({'error': 'Non authentifié'}), 401
     try:
+        # Vérifier le CSRF token
+        csrf_token = request.headers.get('X-CSRF-Token')
+        data = request.get_json() or {}
+        if not csrf_token:
+            csrf_token = data.get('csrf_token')
+        if not csrf_token or not validate_csrf_token(csrf_token):
+            return jsonify({'error': 'CSRF token invalide'}), 403
+
         bookmark = UserBookmark.query.filter_by(
             id=bookmark_id, user_id=session['user_id']
         ).first()
