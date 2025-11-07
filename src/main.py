@@ -6,7 +6,7 @@ from routes.rdv import rdv_bp
 
 def create_app():
     app = Flask(__name__)
-    
+
     # ============ CONFIGURATION SÉCURITÉ SESSION ============
     # Ces paramètres sécurisent les cookies de session
     app.config['SESSION_COOKIE_SECURE'] = True  # Envoie le cookie SEULEMENT en HTTPS
