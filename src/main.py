@@ -38,7 +38,13 @@ def create_app():
 
     @app.route('/health')
     def health():
-        return {"status": "healthy"}
+        try:
+            from database.db import db
+            # Test la connexion à la DB
+            db.session.execute('SELECT 1')
+            return {"status": "healthy", "database": "connected"}, 200
+        except Exception as e:
+            return {"status": "unhealthy", "error": str(e)}, 503
 
     return app
 
