@@ -107,24 +107,28 @@ def send_email_rdv_confirmation(rdv):
         admin_email = os.environ.get('ADMIN_EMAIL', 'mguirassy9@gmail.com')
 
         # Envoyer email utilisateur via Resend
-        resend.Emails.send({
+        user_response = resend.emails.send({
             "from": "onboarding@resend.dev",
             "to": rdv.email,
             "subject": user_subject,
             "html": user_body,
         })
+        print(f"📧 Réponse user email: {user_response}")
 
         # Envoyer email admin via Resend
-        resend.Emails.send({
+        admin_response = resend.emails.send({
             "from": "onboarding@resend.dev",
             "to": admin_email,
             "subject": admin_subject,
             "html": admin_body,
         })
+        print(f"📧 Réponse admin email: {admin_response}")
 
         print(f"✅ Emails envoyés pour la réservation {rdv.id}")
         return True
 
     except Exception as e:
         print(f"❌ Erreur lors de l'envoi des emails Resend: {e}")
+        import traceback
+        traceback.print_exc()
         return False
