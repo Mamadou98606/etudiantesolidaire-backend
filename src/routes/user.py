@@ -12,7 +12,19 @@ def validate_email(email):
     return re.match(pattern, email) is not None
 
 def validate_password(password):
-    return len(password) >= 6
+    """
+    Valider que le mot de passe est suffisamment fort.
+    Requis : 8+ caractères, 1 majuscule, 1 chiffre, 1 caractère spécial
+    """
+    if len(password) < 8:
+        return False, "Le mot de passe doit contenir au moins 8 caractères"
+    if not any(c.isupper() for c in password):
+        return False, "Le mot de passe doit contenir au moins 1 majuscule"
+    if not any(c.isdigit() for c in password):
+        return False, "Le mot de passe doit contenir au moins 1 chiffre"
+    if not any(c in '!@#$%^&*()-_+=[]{}|;:,.<>?' for c in password):
+        return False, "Le mot de passe doit contenir au moins 1 caractère spécial (!@#$%^&* etc)"
+    return True, "OK"
 
 @user_bp.route('/register', methods=['POST'])
 def register():
@@ -22,8 +34,12 @@ def register():
             return jsonify({'error': 'Username, email et password sont requis'}), 400
         if not validate_email(data['email']):
             return jsonify({'error': 'Format email invalide'}), 400
-        if not validate_password(data['password']):
-            return jsonify({'error': 'Le mot de passe doit contenir au moins 6 caractères'}), 400
+        
+        # Valider le mot de passe (retourne un tuple)
+        is_valid, message = validate_password(data['password'])
+        if not is_valid:
+            return jsonify({'error': message}), 400
+            
         if User.query.filter_by(username=data['username']).first():
             return jsonify({'error': "Ce nom d'utilisateur existe déjà"}), 400
         if User.query.filter_by(email=data['email']).first():
@@ -135,8 +151,11 @@ def change_password():
             return jsonify({'error': 'Utilisateur non trouvé'}), 404
         if not user.check_password(data['current_password']):
             return jsonify({'error': 'Mot de passe actuel incorrect'}), 400
-        if not validate_password(data['new_password']):
-            return jsonify({'error': 'Le nouveau mot de passe doit contenir au moins 6 caractères'}), 400
+        
+        # Valider le nouveau mot de passe (retourne un tuple)
+        is_valid, message = validate_password(data['new_password'])
+        if not is_valid:
+            return jsonify({'error': message}), 400
 
         user.set_password(data['new_password'])
         db.session.commit()

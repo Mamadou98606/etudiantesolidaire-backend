@@ -6,6 +6,14 @@ from routes.rdv import rdv_bp
 
 def create_app():
     app = Flask(__name__)
+    
+    # ============ CONFIGURATION SÉCURITÉ SESSION ============
+    # Ces paramètres sécurisent les cookies de session
+    app.config['SESSION_COOKIE_SECURE'] = True  # Envoie le cookie SEULEMENT en HTTPS
+    app.config['SESSION_COOKIE_HTTPONLY'] = True  # JavaScript ne peut pas accéder au cookie
+    app.config['SESSION_COOKIE_SAMESITE'] = 'Strict'  # Anti-CSRF: cookie marche SEULEMENT sur notre domaine
+    app.config['PERMANENT_SESSION_LIFETIME'] = 86400  # La session expire après 24 heures
+    # ============ FIN CONFIGURATION SESSION ============
 
     # Liste des origines autorisées
     allowed_origins = [
