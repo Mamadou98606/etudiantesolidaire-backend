@@ -1,5 +1,5 @@
 import os
-from flask import Flask
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from database.db import init_db
 from routes.user import user_bp
@@ -9,14 +9,35 @@ from email_utils import mail
 def create_app():
     app = Flask(__name__)
 
-    CORS(app, supports_credentials=True, origins=[
-        "http://localhost:3000",
-        "http://localhost:5173",
-        "https://etudiantesolidaire.com",
-        "https://www.etudiantesolidaire.com",
-        "https://lovely-empanada-61146c.netlify.app",
-        "https://api.etudiantesolidaire.com"
-    ])
+    # Configuration CORS améliorée
+    CORS(app, 
+         resources={r"/api/*": {
+             "origins": [
+                 "http://localhost:3000",
+                 "http://localhost:5173",
+                 "https://etudiantesolidaire.com",
+                 "https://www.etudiantesolidaire.com",
+                 "https://lovely-empanada-61146c.netlify.app",
+                 "https://api.etudiantesolidaire.com"
+             ],
+             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+             "allow_headers": ["Content-Type", "Authorization"],
+             "supports_credentials": True,
+             "max_age": 3600
+         }},
+         supports_credentials=True
+    )
+    
+    # Handler pour preflight requests
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            response = jsonify(success=True)
+            response.headers.add("Access-Control-Allow-Origin", request.headers.get("Origin", "*"))
+            response.headers.add("Access-Control-Allow-Headers", request.headers.get("Access-Control-Request-Headers", "Content-Type"))
+            response.headers.add("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
+            response.headers.add("Access-Control-Allow-Credentials", "true")
+            return response, 200
 
     # Configuration du mail
     app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.gmail.com')
