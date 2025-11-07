@@ -111,7 +111,7 @@ def send_email_rdv_confirmation(rdv):
         user_body = Template(user_template).render(**data)
         admin_body = Template(admin_template).render(**data)
 
-        admin_email = os.environ.get('ADMIN_EMAIL', 'contact@etudiantesolidaire.com')
+        admin_email = os.environ.get('ADMIN_EMAIL', 'mguirassy9@gmail.com')
 
         # Envoyer email utilisateur
         msg_user = Message(
