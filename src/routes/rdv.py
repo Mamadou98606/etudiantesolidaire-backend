@@ -61,7 +61,7 @@ def is_slot_available(date_str, time_str):
                 date_obj = date_str
         else:
             date_obj = date_str
-        
+
         # Chercher s'il y a déjà une réservation confirmée à cette date/heure
         existing_rdv = RDV.query.filter(
             RDV.date_rdv == date_obj,
@@ -102,7 +102,7 @@ def reserver_rdv():
                 date_obj = datetime.strptime(date_obj, '%Y-%m-%d').date()
             except:
                 pass  # Garder le string si la conversion échoue
-        
+
         rdv = RDV(
             prenom=data['prenom'],
             nom=data['nom'],
@@ -122,15 +122,15 @@ def reserver_rdv():
         db.session.add(rdv)
         db.session.commit()
 
-        # Envoyer les emails
-        try:
-            send_email_rdv_confirmation(rdv)
-            rdv.email_admin_sent = True
-            rdv.email_user_sent = True
-            db.session.commit()
-        except Exception as e:
-            print(f"Erreur lors de l'envoi des emails: {e}")
-            # Ne pas bloquer la réservation si les emails ne s'envoient pas
+        # Envoyer les emails (DÉSACTIVÉ TEMPORAIREMENT - cause un timeout)
+        # try:
+        #     send_email_rdv_confirmation(rdv)
+        #     rdv.email_admin_sent = True
+        #     rdv.email_user_sent = True
+        #     db.session.commit()
+        # except Exception as e:
+        #     print(f"Erreur lors de l'envoi des emails: {e}")
+        #     # Ne pas bloquer la réservation si les emails ne s'envoient pas
 
         return jsonify({
             'success': True,
@@ -154,7 +154,7 @@ def get_disponibilites(date):
             date_obj = datetime.strptime(date, '%Y-%m-%d').date()
         except:
             date_obj = date
-        
+
         # Récupérer toutes les réservations confirmées/pending pour cette date
         rdvs = RDV.query.filter(
             RDV.date_rdv == date_obj,
