@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from models.rdv import RDV
 from database.db import db
 from datetime import datetime, timedelta
@@ -10,13 +10,14 @@ from email_utils import send_email_rdv_confirmation
 rdv_bp = Blueprint('rdv', __name__)
 
 
-def send_email_async(rdv):
+def send_email_async(rdv, app):
     """Envoyer les emails dans un thread séparé pour ne pas bloquer"""
-    try:
-        send_email_rdv_confirmation(rdv)
-        print(f"✅ Emails envoyés pour la réservation {rdv.id}")
-    except Exception as e:
-        print(f"❌ Erreur lors de l'envoi des emails: {e}")
+    with app.app_context():
+        try:
+            send_email_rdv_confirmation(rdv)
+            print(f"✅ Emails envoyés pour la réservation {rdv.id}")
+        except Exception as e:
+            print(f"❌ Erreur lors de l'envoi des emails: {e}")
 
 
 def validate_email(email):
@@ -133,7 +134,7 @@ def reserver_rdv():
         db.session.commit()
 
         # Envoyer les emails dans un thread séparé (non-bloquant)
-        email_thread = threading.Thread(target=send_email_async, args=(rdv,))
+        email_thread = threading.Thread(target=send_email_async, args=(rdv, current_app._get_current_object()))
         email_thread.daemon = True
         email_thread.start()
 
