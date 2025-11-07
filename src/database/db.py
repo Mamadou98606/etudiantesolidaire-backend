@@ -23,7 +23,13 @@ def init_db(app):
 
     app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key')
+    # SECRET_KEY doit être défini en tant que variable d'environnement
+    secret_key = os.environ.get('SECRET_KEY')
+    if not secret_key:
+        if os.environ.get('RAILWAY_ENVIRONMENT') == 'production':
+            raise ValueError("SECRET_KEY environment variable must be set in production")
+        secret_key = 'dev-secret-key-not-for-production'
+    app.config['SECRET_KEY'] = secret_key
 
     db.init_app(app)
 
