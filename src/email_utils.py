@@ -1,9 +1,9 @@
 import os
-from resend import Resend
+import resend
 from jinja2 import Template
 
-# Initialize Resend client
-resend = Resend(api_key=os.environ.get('RESEND_API_KEY'))
+# Initialize Resend API key
+resend.api_key = os.environ.get('RESEND_API_KEY')
 
 
 def send_email_rdv_confirmation(rdv):
@@ -107,7 +107,7 @@ def send_email_rdv_confirmation(rdv):
         admin_email = os.environ.get('ADMIN_EMAIL', 'mguirassy9@gmail.com')
 
         # Envoyer email utilisateur via Resend
-        resend.emails.send({
+        resend.Emails.send({
             "from": "onboarding@resend.dev",
             "to": rdv.email,
             "subject": user_subject,
@@ -115,7 +115,7 @@ def send_email_rdv_confirmation(rdv):
         })
 
         # Envoyer email admin via Resend
-        resend.emails.send({
+        resend.Emails.send({
             "from": "onboarding@resend.dev",
             "to": admin_email,
             "subject": admin_subject,
