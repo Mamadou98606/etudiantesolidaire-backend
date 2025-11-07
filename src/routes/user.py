@@ -1,11 +1,58 @@
 from flask import Blueprint, jsonify, request, session
 from models.user import User, UserProgress, UserBookmark
 from database.db import db
-from datetime import datetime
+from datetime import datetime, timedelta
 import re
 import os
 
 user_bp = Blueprint('user', __name__)
+
+# ============ RATE LIMITING ============
+# Dictionnaire pour tracker les tentatives échouées : {username_or_ip: [timestamp1, timestamp2, ...]}
+login_attempts = {}
+
+def get_client_identifier():
+    """Récupérer l'identifiant du client (IP)"""
+    return request.remote_addr or request.headers.get('X-Forwarded-For', 'unknown').split(',')[0]
+
+def check_rate_limit(identifier, max_attempts=5, window_minutes=5):
+    """
+    Vérifier si le client a dépassé la limite de tentatives.
+    Retourne (is_limited: bool, remaining_time: int en secondes)
+    """
+    now = datetime.utcnow()
+    window = timedelta(minutes=window_minutes)
+
+    # Nettoyer les anciennes tentatives
+    if identifier in login_attempts:
+        login_attempts[identifier] = [
+            attempt_time for attempt_time in login_attempts[identifier]
+            if now - attempt_time < window
+        ]
+
+    # Vérifier si on a dépassé la limite
+    if identifier in login_attempts and len(login_attempts[identifier]) >= max_attempts:
+        # Calculer le temps avant que la première tentative sort de la fenêtre
+        oldest_attempt = login_attempts[identifier][0]
+        reset_time = oldest_attempt + window
+        remaining_seconds = int((reset_time - now).total_seconds())
+        return True, remaining_seconds
+
+    return False, 0
+
+def record_failed_attempt(identifier):
+    """Enregistrer une tentative échouée"""
+    now = datetime.utcnow()
+    if identifier not in login_attempts:
+        login_attempts[identifier] = []
+    login_attempts[identifier].append(now)
+
+def clear_attempts(identifier):
+    """Effacer les tentatives après une connexion réussie"""
+    if identifier in login_attempts:
+        del login_attempts[identifier]
+
+# ============ FIN RATE LIMITING ============
 
 def validate_email(email):
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
@@ -34,12 +81,12 @@ def register():
             return jsonify({'error': 'Username, email et password sont requis'}), 400
         if not validate_email(data['email']):
             return jsonify({'error': 'Format email invalide'}), 400
-        
+
         # Valider le mot de passe (retourne un tuple)
         is_valid, message = validate_password(data['password'])
         if not is_valid:
             return jsonify({'error': message}), 400
-            
+
         if User.query.filter_by(username=data['username']).first():
             return jsonify({'error': "Ce nom d'utilisateur existe déjà"}), 400
         if User.query.filter_by(email=data['email']).first():
@@ -72,13 +119,29 @@ def login():
         if not data.get('username') or not data.get('password'):
             return jsonify({'error': 'Username et password sont requis'}), 400
 
+        # Vérifier le rate limiting
+        client_id = get_client_identifier()
+        is_limited, remaining_time = check_rate_limit(client_id)
+        if is_limited:
+            minutes = remaining_time // 60
+            seconds = remaining_time % 60
+            return jsonify({
+                'error': f'Trop de tentatives échouées. Réessayez dans {minutes}m {seconds}s'
+            }), 429
+
         user = User.query.filter(
             (User.username == data['username']) | (User.email == data['username'])
         ).first()
         if not user or not user.check_password(data['password']):
+            # Enregistrer la tentative échouée
+            record_failed_attempt(client_id)
             return jsonify({'error': 'Identifiants incorrects'}), 401
         if not user.is_active:
+            record_failed_attempt(client_id)
             return jsonify({'error': 'Compte désactivé'}), 401
+
+        # Connexion réussie : effacer les tentatives échouées
+        clear_attempts(client_id)
 
         user.last_login = datetime.utcnow()
         db.session.commit()
@@ -151,7 +214,7 @@ def change_password():
             return jsonify({'error': 'Utilisateur non trouvé'}), 404
         if not user.check_password(data['current_password']):
             return jsonify({'error': 'Mot de passe actuel incorrect'}), 400
-        
+
         # Valider le nouveau mot de passe (retourne un tuple)
         is_valid, message = validate_password(data['new_password'])
         if not is_valid:
