@@ -1,6 +1,5 @@
 import os
-from flask import Flask, request
-from flask_cors import CORS
+from flask import Flask, request, make_response
 from database.db import init_db
 from routes.user import user_bp
 from routes.rdv import rdv_bp
@@ -9,7 +8,7 @@ from email_utils import mail
 def create_app():
     app = Flask(__name__)
 
-    # Configuration CORS simple et robuste
+    # Liste des origines autorisées
     allowed_origins = [
         "http://localhost:3000",
         "http://localhost:5173",
@@ -19,21 +18,31 @@ def create_app():
         "https://api.etudiantesolidaire.com"
     ]
 
-    CORS(app,
-         origins=allowed_origins,
-         methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-         allow_headers=["Content-Type", "Authorization"],
-         supports_credentials=True,
-         max_age=3600
-    )
+    # Handler pour les requêtes OPTIONS (preflight)
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            origin = request.headers.get('Origin')
+            response = make_response()
+            response.status_code = 200
 
-    # Ajouter les headers CORS après chaque réponse pour s'assurer qu'ils sont toujours présents
+            if origin in allowed_origins:
+                response.headers['Access-Control-Allow-Origin'] = origin
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+            response.headers['Access-Control-Allow-Headers'] = request.headers.get('Access-Control-Request-Headers', 'Content-Type,Authorization')
+            response.headers['Access-Control-Allow-Credentials'] = 'true'
+            response.headers['Access-Control-Max-Age'] = '3600'
+
+            return response, 200
+        return None
+
+    # Ajouter les headers CORS à toutes les réponses
     @app.after_request
-    def after_request(response):
+    def add_cors_headers(response):
         origin = request.headers.get('Origin')
         if origin in allowed_origins:
             response.headers['Access-Control-Allow-Origin'] = origin
-            response.headers['Access-Control-Allow-Methods'] = 'GET,POST,PUT,DELETE,OPTIONS'
+            response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
             response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
             response.headers['Access-Control-Allow-Credentials'] = 'true'
         return response
