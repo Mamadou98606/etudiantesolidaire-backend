@@ -6,9 +6,10 @@ import re
 import os
 import secrets
 try:
-    from resend import Resend
+    from resend import Resend, Emails
 except ImportError:
     Resend = None
+    Emails = None
 
 user_bp = Blueprint('user', __name__)
 
@@ -112,8 +113,6 @@ def send_verification_email(user_email: str, verification_token: str, user_name:
             print(f"⚠️ RESEND_API_KEY not set, skipping email to {user_email}", flush=True)
             return True  # Retourner True pour ne pas bloquer l'inscription
 
-        client = Resend(api_key=resend_api_key)
-
         # Créer le lien de vérification
         verification_url = f"{frontend_url}/verify-email?token={verification_token}"
 
@@ -138,7 +137,8 @@ def send_verification_email(user_email: str, verification_token: str, user_name:
         </div>
         """
 
-        response = client.send({
+        email = Emails(api_key=resend_api_key)
+        response = email.send({
             "from": "noreply@etudiantesolidaire.com",
             "to": user_email,
             "subject": "Vérifiez votre email - Étudiant Solidaire",
