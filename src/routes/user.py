@@ -179,6 +179,62 @@ def validate_email(email):
     email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return bool(re.match(email_pattern, email))
 
+# ============ ÉTAPE 7 : PASSWORD RESET ============
+def send_password_reset_email(user_email: str, reset_token: str, user_name: str = ''):
+    """Envoyer un email de réinitialisation de mot de passe via Resend API"""
+    try:
+        resend_api_key = os.environ.get('RESEND_API_KEY')
+        frontend_url = os.environ.get('FRONTEND_URL', 'https://etudiantesolidaire.com')
+
+        if not resend_api_key:
+            print(f"⚠️ RESEND_API_KEY not set, skipping email to {user_email}", flush=True)
+            return True
+
+        # Créer le lien de réinitialisation
+        reset_url = f"{frontend_url}/reset-password?token={reset_token}"
+
+        # Email HTML
+        html_content = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Réinitialiser votre mot de passe 🔐</h2>
+            <p>Bonjour {user_name},</p>
+            <p>Vous avez demandé la réinitialisation de votre mot de passe. Cliquez sur le bouton ci-dessous pour créer un nouveau mot de passe.</p>
+            <p style="margin: 30px 0;">
+                <a href="{reset_url}" style="background-color: #0066cc; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                    Réinitialiser mon mot de passe
+                </a>
+            </p>
+            <p>Ou copiez ce lien dans votre navigateur :</p>
+            <p><code>{reset_url}</code></p>
+            <p>Ce lien est valide pendant 1 heure.</p>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+            <p style="color: #666; font-size: 12px;">
+                Si vous n'avez pas demandé cette réinitialisation, ignorez cet email. Votre mot de passe reste inchangé.
+            </p>
+        </div>
+        """
+
+        resend.Emails.send({
+            "from": "noreply@etudiantesolidaire.com",
+            "to": user_email,
+            "subject": "Réinitialiser votre mot de passe - Étudiant Solidaire",
+            "html": html_content
+        })
+
+        print(f"✅ Email de réinitialisation envoyé à {user_email}", flush=True)
+        return True
+    except Exception as e:
+        print(f"❌ Erreur lors de l'envoi d'email : {str(e)}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return True
+
+def generate_password_reset_token():
+    """Générer un token de réinitialisation de mot de passe"""
+    return secrets.token_urlsafe(32)
+
+# ============ FIN ÉTAPE 7 : PASSWORD RESET ============
+
 @user_bp.route('/csrf-token', methods=['GET'])
 def get_csrf_token_endpoint():
     """Endpoint pour récupérer le token CSRF"""
@@ -318,6 +374,88 @@ def resend_verification_email():
     except Exception as e:
         db.session.rollback()
         print(f"❌ Erreur resend_verification_email: {str(e)}", flush=True)
+        return jsonify({'error': f'Erreur: {str(e)}'}), 500
+
+@user_bp.route('/forgot-password', methods=['POST'])
+def forgot_password():
+    """Demander la réinitialisation du mot de passe"""
+    try:
+        data = request.get_json() or {}
+        email = data.get('email')
+
+        if not email:
+            return jsonify({'error': 'Email requis'}), 400
+
+        if not validate_email(email):
+            return jsonify({'error': 'Format email invalide'}), 400
+
+        user = User.query.filter_by(email=email).first()
+
+        # On retourne toujours le même message pour ne pas révéler si un email existe
+        if not user:
+            return jsonify({'message': 'Si cet email existe dans notre système, un lien de réinitialisation sera envoyé.'}), 200
+
+        # Générer un token de réinitialisation
+        reset_token = generate_password_reset_token()
+        user.password_reset_token = reset_token
+        user.password_reset_expires_at = datetime.utcnow() + timedelta(hours=1)
+        db.session.commit()
+
+        # Envoyer l'email (non-bloquant)
+        try:
+            user_name = user.first_name or user.username
+            send_password_reset_email(user.email, reset_token, user_name)
+        except Exception as e:
+            print(f"⚠️ Email de reset non-envoyé mais token généré: {str(e)}", flush=True)
+
+        return jsonify({'message': 'Si cet email existe dans notre système, un lien de réinitialisation sera envoyé.'}), 200
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Erreur forgot_password: {str(e)}", flush=True)
+        return jsonify({'error': f'Erreur: {str(e)}'}), 500
+
+@user_bp.route('/reset-password/<token>', methods=['POST'])
+def reset_password(token):
+    """Réinitialiser le mot de passe avec un token valide"""
+    try:
+        data = request.get_json() or {}
+        new_password = data.get('new_password')
+
+        if not new_password:
+            return jsonify({'error': 'Nouveau mot de passe requis'}), 400
+
+        # Valider le nouveau mot de passe
+        is_valid, message = validate_password(new_password)
+        if not is_valid:
+            return jsonify({'error': message}), 400
+
+        user = User.query.filter_by(password_reset_token=token).first()
+
+        if not user:
+            return jsonify({'error': 'Token invalide ou expiré'}), 400
+
+        # Vérifier si le token n'a pas expiré
+        if user.password_reset_expires_at:
+            expires_at = user.password_reset_expires_at
+            if not isinstance(expires_at, datetime):
+                expires_at = datetime.fromisoformat(str(expires_at))
+
+            if expires_at < datetime.utcnow():
+                return jsonify({'error': 'Token expiré. Veuillez demander un nouveau lien.'}), 400
+
+        # Réinitialiser le mot de passe
+        user.set_password(new_password)
+        user.password_reset_token = None
+        user.password_reset_expires_at = None
+        db.session.commit()
+
+        return jsonify({
+            'message': 'Mot de passe réinitialisé avec succès ! Vous pouvez maintenant vous connecter.',
+            'user': user.to_dict()
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        print(f"❌ Erreur reset_password: {str(e)}", flush=True)
         return jsonify({'error': f'Erreur: {str(e)}'}), 500
 
 @user_bp.route('/login', methods=['POST'])

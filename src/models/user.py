@@ -24,6 +24,10 @@ class User(db.Model):
     email_verification_token = db.Column(db.String(255), nullable=True, unique=True)
     email_token_expires_at = db.Column(db.DateTime, nullable=True)
     # ============ FIN ÉTAPE 6 ============
+    # ============ ÉTAPE 7 : Password Reset ============
+    password_reset_token = db.Column(db.String(255), nullable=True, unique=True)
+    password_reset_expires_at = db.Column(db.DateTime, nullable=True)
+    # ============ FIN ÉTAPE 7 ============
 
     progress = db.relationship('UserProgress', backref='user', cascade='all, delete-orphan')
     bookmarks = db.relationship('UserBookmark', backref='user', cascade='all, delete-orphan')
