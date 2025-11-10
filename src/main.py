@@ -1,6 +1,6 @@
 import os
 from flask import Flask, request, make_response
-from database.db import init_db
+from database.db import init_db, db
 from routes.user import user_bp
 from routes.rdv import rdv_bp
 
