@@ -236,13 +236,9 @@ def register():
         db.session.add(user)
         db.session.commit()
 
-        # Envoyer l'email de vérification (non-bloquant)
-        try:
-            user_name = data.get('first_name', data.get('username', 'Utilisateur'))
-            send_verification_email(user.email, verification_token, user_name)
-        except Exception as e:
-            print(f"⚠️ Email non-envoyé mais inscription réussie: {str(e)}", flush=True)
-            # L'inscription réussit même si l'email échoue
+        # Envoyer l'email de vérification EN ARRIÈRE-PLAN (TODO: implémenter avec task queue comme Celery)
+        # Pour maintenant, on skippe pour éviter les timeouts
+        # TODO: send_verification_email(user.email, verification_token, user_name)
 
         session['user_id'] = user.id
         session['username'] = user.username
