@@ -389,7 +389,7 @@ def forgot_password():
         if not validate_email(email):
             return jsonify({'error': 'Format email invalide'}), 400
 
-        user = User.query.filter_by(email=email).first()
+        user = User.query.filter(User.email.ilike(email)).first()
 
         # On retourne toujours le même message pour ne pas révéler si un email existe
         if not user:
