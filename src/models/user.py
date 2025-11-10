@@ -19,6 +19,11 @@ class User(db.Model):
     last_login = db.Column(db.DateTime, nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     is_admin = db.Column(db.Boolean, default=False)
+    # ============ ÉTAPE 6 : Email Verification ============
+    email_verified = db.Column(db.Boolean, default=False)
+    email_verification_token = db.Column(db.String(255), nullable=True, unique=True)
+    email_token_expires_at = db.Column(db.DateTime, nullable=True)
+    # ============ FIN ÉTAPE 6 ============
 
     progress = db.relationship('UserProgress', backref='user', cascade='all, delete-orphan')
     bookmarks = db.relationship('UserBookmark', backref='user', cascade='all, delete-orphan')
@@ -46,6 +51,7 @@ class User(db.Model):
             'last_login': self.last_login.isoformat() if self.last_login else None,
             'is_active': self.is_active,
             'is_admin': self.is_admin,
+            'email_verified': self.email_verified,
         }
 
 

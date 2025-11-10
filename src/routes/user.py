@@ -5,6 +5,10 @@ from datetime import datetime, timedelta
 import re
 import os
 import secrets
+try:
+    from resend import Resend
+except ImportError:
+    Resend = None
 
 user_bp = Blueprint('user', __name__)
 
@@ -93,7 +97,58 @@ def require_csrf_token(f):
 
 # ============ FIN CSRF PROTECTION ============
 
-def validate_email(email):
+# ============ ÉTAPE 6 : EMAIL VERIFICATION ============
+def send_verification_email(user_email: str, verification_token: str, user_name: str = ''):
+    """Envoyer un email de vérification via Resend API"""
+    if not Resend:
+        print(f"⚠️ Resend not installed, skipping email to {user_email}")
+        return False
+    
+    try:
+        client = Resend(api_key=os.environ.get('RESEND_API_KEY'))
+        
+        # Créer le lien de vérification
+        verification_url = f"{os.environ.get('FRONTEND_URL', 'https://etudiantesolidaire.com')}/verify-email?token={verification_token}"
+        
+        # Email HTML
+        html_content = f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2>Bienvenue sur Étudiant Solidaire ! 🎓</h2>
+            <p>Bonjour {user_name},</p>
+            <p>Merci de vous être inscrit sur notre plateforme. Pour activer votre compte, veuillez vérifier votre adresse email en cliquant sur le bouton ci-dessous.</p>
+            <p style="margin: 30px 0;">
+                <a href="{verification_url}" style="background-color: #0066cc; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                    Vérifier mon email
+                </a>
+            </p>
+            <p>Ou copiez ce lien dans votre navigateur :</p>
+            <p><code>{verification_url}</code></p>
+            <p>Ce lien est valide pendant 24 heures.</p>
+            <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+            <p style="color: #666; font-size: 12px;">
+                Si vous n'avez pas créé ce compte, ignorez cet email.
+            </p>
+        </div>
+        """
+        
+        response = client.emails.send({
+            "from": "noreply@etudiantesolidaire.com",
+            "to": user_email,
+            "subject": "Vérifiez votre email - Étudiant Solidaire",
+            "html": html_content
+        })
+        
+        print(f"✅ Email de vérification envoyé à {user_email}")
+        return True
+    except Exception as e:
+        print(f"❌ Erreur lors de l'envoi d'email : {e}")
+        return False
+
+def generate_verification_token():
+    """Générer un token de vérification email"""
+    return secrets.token_urlsafe(32)
+
+# ============ FIN ÉTAPE 6 : EMAIL VERIFICATION ============
     pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
     return re.match(pattern, email) is not None
 
@@ -153,17 +208,95 @@ def register():
             field_of_study=data.get('field_of_study', '')
         )
         user.set_password(data['password'])
+        
+        # ============ ÉTAPE 6 : Générer token de vérification ============
+        verification_token = generate_verification_token()
+        user.email_verified = False
+        user.email_verification_token = verification_token
+        user.email_token_expires_at = datetime.utcnow() + timedelta(hours=24)
+        # ============ FIN ÉTAPE 6 ============
+        
         db.session.add(user)
         db.session.commit()
 
+        # Envoyer l'email de vérification
+        user_name = data.get('first_name', data.get('username', 'Utilisateur'))
+        send_verification_email(user.email, verification_token, user_name)
+
         session['user_id'] = user.id
         session['username'] = user.username
-        return jsonify({'message': 'Inscription réussie', 'user': user.to_dict()}), 201
+        return jsonify({
+            'message': 'Inscription réussie. Veuillez vérifier votre email.',
+            'user': user.to_dict(),
+            'email_verified': False
+        }), 201
     except Exception:
         db.session.rollback()
         return jsonify({'error': "Erreur lors de l'inscription"}), 500
 
+@user_bp.route('/verify-email/<token>', methods=['GET'])
+def verify_email(token):
+    """Vérifier l'email de l'utilisateur avec le token"""
+    try:
+        user = User.query.filter_by(email_verification_token=token).first()
+        
+        if not user:
+            return jsonify({'error': 'Token invalide ou expiré'}), 400
+        
+        # Vérifier si le token n'a pas expiré
+        if user.email_token_expires_at and user.email_token_expires_at < datetime.utcnow():
+            return jsonify({'error': 'Token expiré. Veuillez demander un nouveau lien de vérification.'}), 400
+        
+        # Marquer l'email comme vérifié
+        user.email_verified = True
+        user.email_verification_token = None
+        user.email_token_expires_at = None
+        db.session.commit()
+        
+        return jsonify({
+            'message': 'Email vérifié avec succès !',
+            'user': user.to_dict()
+        }), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Erreur lors de la vérification: {str(e)}'}), 500
+
+@user_bp.route('/resend-verification-email', methods=['POST'])
+def resend_verification_email():
+    """Renvoyer l'email de vérification"""
+    try:
+        data = request.get_json() or {}
+        email = data.get('email')
+        
+        if not email:
+            return jsonify({'error': 'Email requis'}), 400
+        
+        user = User.query.filter_by(email=email).first()
+        
+        if not user:
+            return jsonify({'error': 'Utilisateur non trouvé'}), 404
+        
+        # Si déjà vérifié
+        if user.email_verified:
+            return jsonify({'message': 'Cet email est déjà vérifié.'}), 200
+        
+        # Générer un nouveau token
+        verification_token = generate_verification_token()
+        user.email_verification_token = verification_token
+        user.email_token_expires_at = datetime.utcnow() + timedelta(hours=24)
+        db.session.commit()
+        
+        # Envoyer l'email
+        user_name = user.first_name or user.username
+        send_verification_email(user.email, verification_token, user_name)
+        
+        return jsonify({'message': 'Email de vérification renvoyé avec succès.'}), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': f'Erreur: {str(e)}'}), 500
+
 @user_bp.route('/login', methods=['POST'])
+
 def login():
     try:
         data = request.get_json() or {}
