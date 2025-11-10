@@ -101,14 +101,21 @@ def require_csrf_token(f):
 def send_verification_email(user_email: str, verification_token: str, user_name: str = ''):
     """Envoyer un email de vérification via Resend API"""
     if not Resend:
-        print(f"⚠️ Resend not installed, skipping email to {user_email}")
-        return False
+        print(f"⚠️ Resend not installed, skipping email to {user_email}", flush=True)
+        return True  # Retourner True pour ne pas bloquer l'inscription
 
     try:
-        client = Resend(api_key=os.environ.get('RESEND_API_KEY'))
+        resend_api_key = os.environ.get('RESEND_API_KEY')
+        frontend_url = os.environ.get('FRONTEND_URL', 'https://etudiantesolidaire.com')
+        
+        if not resend_api_key:
+            print(f"⚠️ RESEND_API_KEY not set, skipping email to {user_email}", flush=True)
+            return True  # Retourner True pour ne pas bloquer l'inscription
+        
+        client = Resend(api_key=resend_api_key)
 
         # Créer le lien de vérification
-        verification_url = f"{os.environ.get('FRONTEND_URL', 'https://etudiantesolidaire.com')}/verify-email?token={verification_token}"
+        verification_url = f"{frontend_url}/verify-email?token={verification_token}"
 
         # Email HTML
         html_content = f"""
@@ -138,11 +145,13 @@ def send_verification_email(user_email: str, verification_token: str, user_name:
             "html": html_content
         })
 
-        print(f"✅ Email de vérification envoyé à {user_email}")
+        print(f"✅ Email de vérification envoyé à {user_email}", flush=True)
         return True
     except Exception as e:
-        print(f"❌ Erreur lors de l'envoi d'email : {e}")
-        return False
+        print(f"❌ Erreur lors de l'envoi d'email : {str(e)}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return True  # Retourner True pour ne pas bloquer l'inscription même si email échoue
 
 def generate_verification_token():
     """Générer un token de vérification email"""
@@ -238,9 +247,12 @@ def register():
             'user': user.to_dict(),
             'email_verified': False
         }), 201
-    except Exception:
+    except Exception as e:
         db.session.rollback()
-        return jsonify({'error': "Erreur lors de l'inscription"}), 500
+        print(f"❌ Erreur lors de l'inscription : {str(e)}", flush=True)
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f"Erreur lors de l'inscription : {str(e)}"}), 500
 
 @user_bp.route('/verify-email/<token>', methods=['GET'])
 def verify_email(token):
