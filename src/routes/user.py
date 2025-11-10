@@ -103,13 +103,13 @@ def send_verification_email(user_email: str, verification_token: str, user_name:
     if not Resend:
         print(f"⚠️ Resend not installed, skipping email to {user_email}")
         return False
-    
+
     try:
         client = Resend(api_key=os.environ.get('RESEND_API_KEY'))
-        
+
         # Créer le lien de vérification
         verification_url = f"{os.environ.get('FRONTEND_URL', 'https://etudiantesolidaire.com')}/verify-email?token={verification_token}"
-        
+
         # Email HTML
         html_content = f"""
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -130,14 +130,14 @@ def send_verification_email(user_email: str, verification_token: str, user_name:
             </p>
         </div>
         """
-        
+
         response = client.emails.send({
             "from": "noreply@etudiantesolidaire.com",
             "to": user_email,
             "subject": "Vérifiez votre email - Étudiant Solidaire",
             "html": html_content
         })
-        
+
         print(f"✅ Email de vérification envoyé à {user_email}")
         return True
     except Exception as e:
@@ -166,6 +166,14 @@ def validate_password(password):
     if not any(c in '!@#$%^&*()-_+=[]{}|;:,.<>?' for c in password):
         return False, "Le mot de passe doit contenir au moins 1 caractère spécial (!@#$%^&* etc)"
     return True, "OK"
+
+def validate_email(email):
+    """
+    Valider le format de l'email avec une regex simple mais efficace.
+    """
+    # Regex RFC 5322 simplifiée mais robuste
+    email_pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return bool(re.match(email_pattern, email))
 
 @user_bp.route('/csrf-token', methods=['GET'])
 def get_csrf_token_endpoint():
@@ -208,14 +216,14 @@ def register():
             field_of_study=data.get('field_of_study', '')
         )
         user.set_password(data['password'])
-        
+
         # ============ ÉTAPE 6 : Générer token de vérification ============
         verification_token = generate_verification_token()
         user.email_verified = False
         user.email_verification_token = verification_token
         user.email_token_expires_at = datetime.utcnow() + timedelta(hours=24)
         # ============ FIN ÉTAPE 6 ============
-        
+
         db.session.add(user)
         db.session.commit()
 
@@ -239,20 +247,20 @@ def verify_email(token):
     """Vérifier l'email de l'utilisateur avec le token"""
     try:
         user = User.query.filter_by(email_verification_token=token).first()
-        
+
         if not user:
             return jsonify({'error': 'Token invalide ou expiré'}), 400
-        
+
         # Vérifier si le token n'a pas expiré
         if user.email_token_expires_at and user.email_token_expires_at < datetime.utcnow():
             return jsonify({'error': 'Token expiré. Veuillez demander un nouveau lien de vérification.'}), 400
-        
+
         # Marquer l'email comme vérifié
         user.email_verified = True
         user.email_verification_token = None
         user.email_token_expires_at = None
         db.session.commit()
-        
+
         return jsonify({
             'message': 'Email vérifié avec succès !',
             'user': user.to_dict()
@@ -267,29 +275,29 @@ def resend_verification_email():
     try:
         data = request.get_json() or {}
         email = data.get('email')
-        
+
         if not email:
             return jsonify({'error': 'Email requis'}), 400
-        
+
         user = User.query.filter_by(email=email).first()
-        
+
         if not user:
             return jsonify({'error': 'Utilisateur non trouvé'}), 404
-        
+
         # Si déjà vérifié
         if user.email_verified:
             return jsonify({'message': 'Cet email est déjà vérifié.'}), 200
-        
+
         # Générer un nouveau token
         verification_token = generate_verification_token()
         user.email_verification_token = verification_token
         user.email_token_expires_at = datetime.utcnow() + timedelta(hours=24)
         db.session.commit()
-        
+
         # Envoyer l'email
         user_name = user.first_name or user.username
         send_verification_email(user.email, verification_token, user_name)
-        
+
         return jsonify({'message': 'Email de vérification renvoyé avec succès.'}), 200
     except Exception as e:
         db.session.rollback()
