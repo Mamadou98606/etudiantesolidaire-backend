@@ -46,5 +46,19 @@ def init_db(app):
     try:
         with app.app_context():
             db.create_all()
+
+            # ============ ÉTAPE 6 : Migration pour ajouter colonnes email ============
+            # Ajouter les colonnes email_verified si elles n'existent pas
+            try:
+                from sqlalchemy import text
+                db.session.execute(text('ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE'))
+                db.session.execute(text('ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_token VARCHAR(255) UNIQUE'))
+                db.session.execute(text('ALTER TABLE users ADD COLUMN IF NOT EXISTS email_token_expires_at TIMESTAMP'))
+                db.session.commit()
+                print("[info] Email verification columns ensured in database", flush=True)
+            except Exception as e:
+                db.session.rollback()
+                print(f"[warn] Could not ensure email columns: {e}", flush=True)
+            # ============ FIN ÉTAPE 6 ============
     except Exception as e:
         print(f"[warn] Database initialization skipped due to error: {e}", flush=True)
