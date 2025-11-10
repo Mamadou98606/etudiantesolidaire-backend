@@ -6,10 +6,9 @@ import re
 import os
 import secrets
 try:
-    from resend import Resend, Emails
+    from resend import Resend
 except ImportError:
     Resend = None
-    Emails = None
 
 user_bp = Blueprint('user', __name__)
 
@@ -137,8 +136,8 @@ def send_verification_email(user_email: str, verification_token: str, user_name:
         </div>
         """
 
-        email = Emails(api_key=resend_api_key)
-        response = email.send({
+        client = Resend(api_key=resend_api_key)
+        response = client.emails.send({
             "from": "noreply@etudiantesolidaire.com",
             "to": user_email,
             "subject": "Vérifiez votre email - Étudiant Solidaire",
