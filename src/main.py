@@ -68,7 +68,21 @@ def create_app():
     def health():
         return {"status": "healthy"}, 200
 
-    return app
+    @app.route('/migrate', methods=['POST'])
+    def migrate_db():
+        """Endpoint pour appliquer les migrations manuellement (temporaire)"""
+        try:
+            from sqlalchemy import text
+            # Ajouter les colonnes email_verified
+            db.session.execute(text('ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE'))
+            db.session.execute(text('ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_token VARCHAR(255) UNIQUE'))
+            db.session.execute(text('ALTER TABLE users ADD COLUMN IF NOT EXISTS email_token_expires_at TIMESTAMP'))
+            db.session.execute(text('CREATE INDEX IF NOT EXISTS idx_email_verification_token ON users(email_verification_token)'))
+            db.session.commit()
+            return {"message": "Migration réussie - colonnes email ajoutées"}, 200
+        except Exception as e:
+            db.session.rollback()
+            return {"error": f"Migration échouée: {str(e)}"}, 500    return app
 
 """Module-level Flask application instance for WSGI servers (e.g., Gunicorn)."""
 app = create_app()
