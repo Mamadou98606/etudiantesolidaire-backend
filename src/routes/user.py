@@ -259,8 +259,14 @@ def verify_email(token):
             return jsonify({'error': 'Token invalide ou expiré'}), 400
 
         # Vérifier si le token n'a pas expiré
-        if user.email_token_expires_at and user.email_token_expires_at < datetime.utcnow():
-            return jsonify({'error': 'Token expiré. Veuillez demander un nouveau lien de vérification.'}), 400
+        if user.email_token_expires_at:
+            # Convertir en datetime si nécessaire
+            expires_at = user.email_token_expires_at
+            if not isinstance(expires_at, datetime):
+                expires_at = datetime.fromisoformat(str(expires_at))
+
+            if expires_at < datetime.utcnow():
+                return jsonify({'error': 'Token expiré. Veuillez demander un nouveau lien de vérification.'}), 400
 
         # Marquer l'email comme vérifié
         user.email_verified = True
