@@ -5,10 +5,11 @@ from datetime import datetime, timedelta
 import re
 import os
 import secrets
-try:
-    from resend import Resend
-except ImportError:
-    Resend = None
+import resend
+from jinja2 import Template
+
+# Initialize Resend API key
+resend.api_key = os.environ.get('RESEND_API_KEY')
 
 user_bp = Blueprint('user', __name__)
 
@@ -100,10 +101,6 @@ def require_csrf_token(f):
 # ============ ÉTAPE 6 : EMAIL VERIFICATION ============
 def send_verification_email(user_email: str, verification_token: str, user_name: str = ''):
     """Envoyer un email de vérification via Resend API"""
-    if not Resend:
-        print(f"⚠️ Resend not installed, skipping email to {user_email}", flush=True)
-        return True  # Retourner True pour ne pas bloquer l'inscription
-
     try:
         resend_api_key = os.environ.get('RESEND_API_KEY')
         frontend_url = os.environ.get('FRONTEND_URL', 'https://etudiantesolidaire.com')
@@ -136,8 +133,7 @@ def send_verification_email(user_email: str, verification_token: str, user_name:
         </div>
         """
 
-        client = Resend(api_key=resend_api_key)
-        response = client.emails.send({
+        resend.Emails.send({
             "from": "noreply@etudiantesolidaire.com",
             "to": user_email,
             "subject": "Vérifiez votre email - Étudiant Solidaire",
