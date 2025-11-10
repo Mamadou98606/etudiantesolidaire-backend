@@ -138,7 +138,7 @@ def send_verification_email(user_email: str, verification_token: str, user_name:
         </div>
         """
 
-        response = client.emails.send({
+        response = client.send({
             "from": "noreply@etudiantesolidaire.com",
             "to": user_email,
             "subject": "Vérifiez votre email - Étudiant Solidaire",
