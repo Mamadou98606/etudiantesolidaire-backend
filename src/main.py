@@ -36,7 +36,8 @@ def create_app():
             if origin in allowed_origins:
                 response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-            response.headers['Access-Control-Allow-Headers'] = request.headers.get('Access-Control-Request-Headers', 'Content-Type,Authorization')
+            # Autoriser tous les headers nécessaires incluant X-CSRF-Token
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-CSRF-Token'
             response.headers['Access-Control-Allow-Credentials'] = 'true'
             response.headers['Access-Control-Max-Age'] = '3600'
 
@@ -50,7 +51,8 @@ def create_app():
         if origin in allowed_origins:
             response.headers['Access-Control-Allow-Origin'] = origin
             response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-            response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization'
+            # Autoriser X-CSRF-Token pour les requêtes CSRF
+            response.headers['Access-Control-Allow-Headers'] = 'Content-Type,Authorization,X-CSRF-Token'
             response.headers['Access-Control-Allow-Credentials'] = 'true'
         return response
 
