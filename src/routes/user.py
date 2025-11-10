@@ -107,11 +107,11 @@ def send_verification_email(user_email: str, verification_token: str, user_name:
     try:
         resend_api_key = os.environ.get('RESEND_API_KEY')
         frontend_url = os.environ.get('FRONTEND_URL', 'https://etudiantesolidaire.com')
-        
+
         if not resend_api_key:
             print(f"⚠️ RESEND_API_KEY not set, skipping email to {user_email}", flush=True)
             return True  # Retourner True pour ne pas bloquer l'inscription
-        
+
         client = Resend(api_key=resend_api_key)
 
         # Créer le lien de vérification
@@ -236,9 +236,13 @@ def register():
         db.session.add(user)
         db.session.commit()
 
-        # Envoyer l'email de vérification
-        user_name = data.get('first_name', data.get('username', 'Utilisateur'))
-        send_verification_email(user.email, verification_token, user_name)
+        # Envoyer l'email de vérification (non-bloquant)
+        try:
+            user_name = data.get('first_name', data.get('username', 'Utilisateur'))
+            send_verification_email(user.email, verification_token, user_name)
+        except Exception as e:
+            print(f"⚠️ Email non-envoyé mais inscription réussie: {str(e)}", flush=True)
+            # L'inscription réussit même si l'email échoue
 
         session['user_id'] = user.id
         session['username'] = user.username
@@ -306,13 +310,17 @@ def resend_verification_email():
         user.email_token_expires_at = datetime.utcnow() + timedelta(hours=24)
         db.session.commit()
 
-        # Envoyer l'email
-        user_name = user.first_name or user.username
-        send_verification_email(user.email, verification_token, user_name)
+        # Envoyer l'email (non-bloquant)
+        try:
+            user_name = user.first_name or user.username
+            send_verification_email(user.email, verification_token, user_name)
+        except Exception as e:
+            print(f"⚠️ Email non-envoyé mais token généré: {str(e)}", flush=True)
 
         return jsonify({'message': 'Email de vérification renvoyé avec succès.'}), 200
     except Exception as e:
         db.session.rollback()
+        print(f"❌ Erreur resend_verification_email: {str(e)}", flush=True)
         return jsonify({'error': f'Erreur: {str(e)}'}), 500
 
 @user_bp.route('/login', methods=['POST'])
